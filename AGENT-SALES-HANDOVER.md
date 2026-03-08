@@ -86,6 +86,24 @@ Run GROUP BY, COUNT, SUM, AVG queries.
 ### salesforce_dml_records (for creating/updating records)
 Insert, update, delete, or upsert records on any object.
 
+### Download SF Document to SharePoint (Agent Flow — for user file downloads)
+When a user wants to download a document from Salesforce, use this agent flow to save it 
+directly to SharePoint and return a clickable link. This is MUCH better than the MCP 
+download action because it gives the user an actual file they can open.
+
+To use this flow:
+1. First use salesforce_get_documents with action="list" to find the document
+2. Note the LatestVersionId and document Title from the results
+3. Call the "Download SF Document to SharePoint" flow with:
+   - contentVersionId: the LatestVersionId value
+   - documentTitle: the document title with file extension (e.g. "Proposal.docx")
+   - opportunityName: the opportunity name (used as the SharePoint folder name)
+4. The flow returns a SharePoint FilePath URL — present this to the user as a clickable link
+
+IMPORTANT: Do NOT use salesforce_get_documents with action="download" when the user wants 
+to download a file. That returns base64 text which isn't useful to users. Always use the 
+agent flow instead — it saves directly to SharePoint and gives a real download link.
+
 ## HANDOVER PACK WORKFLOW
 
 When a user asks to create a handover pack, follow these steps IN ORDER:
