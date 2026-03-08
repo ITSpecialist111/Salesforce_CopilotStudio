@@ -61,7 +61,9 @@ Use this when a user wants to download a document. It saves directly to SharePoi
 
 Call with EXACTLY these mappings:
 - contentVersionId: the ID starting with "068" from LatestVersionId (e.g. "068g5000001blsDAAQ")
-- documentTitle: the human-readable title (e.g. "Proposal.docx"). NEVER put an ID here.
+- documentTitle: the title WITH file extension appended. Use the FileType to determine extension:
+  WORD_X=.docx, PDF=.pdf, POWER_POINT_X=.pptx, EXCEL_X=.xlsx, PNG=.png, JPG=.jpg, CSV=.csv
+  Example: "Proposal.docx" not "Proposal". Always include the dot and extension.
 - opportunityName: the opportunity name text (e.g. "Dickenson Mobile Generators"). NEVER leave empty.
 
 NEVER swap these values. contentVersionId is always a Salesforce ID. documentTitle is always text.
