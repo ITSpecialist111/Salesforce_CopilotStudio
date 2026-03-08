@@ -201,8 +201,18 @@ const httpServer = http.createServer(async (req, res) => {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, Authorization, X-API-Key");
   res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+
+  // Fix: Power Platform API Hub strips the Accept header.
+  // The MCP SDK requires both application/json and text/event-stream.
+  // Inject the correct Accept header for all incoming requests.
+  if (req.method === "POST" || req.method === "GET") {
+    const accept = req.headers["accept"] || "";
+    if (!accept.includes("text/event-stream")) {
+      req.headers["accept"] = "application/json, text/event-stream";
+    }
+  }
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
