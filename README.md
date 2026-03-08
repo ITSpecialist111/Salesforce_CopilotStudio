@@ -1,357 +1,212 @@
-# Salesforce MCP Server
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tsmztech/mcp-server-salesforce/badge)](https://securityscorecards.dev/viewer/?uri=github.com/tsmztech/mcp-server-salesforce)
+# Salesforce MCP Server for Copilot Studio
 
+> A self-hosted Salesforce MCP (Model Context Protocol) server with Streamable HTTP transport, designed to connect to Microsoft Copilot Studio.
 
-An MCP (Model Context Protocol) server implementation that integrates Claude with Salesforce, enabling natural language interactions with your Salesforce data and metadata. This server allows Claude to query, modify, and manage your Salesforce objects and records using everyday language.
+## Overview
 
-<a href="https://glama.ai/mcp/servers/kqeniawbr6">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/kqeniawbr6/badge" alt="Salesforce Server MCP server" />
-</a>
+This project wraps the excellent [tsmztech/mcp-server-salesforce](https://github.com/tsmztech/mcp-server-salesforce) (MIT License) with a **Streamable HTTP transport layer**, enabling it to work with **Microsoft Copilot Studio** as a custom MCP connector.
 
-## Features
+### Why This Exists
 
-* **Object and Field Management**: Create and modify custom objects and fields using natural language
-* **Smart Object Search**: Find Salesforce objects using partial name matches
-* **Detailed Schema Information**: Get comprehensive field and relationship details for any object
-* **Flexible Data Queries**: Query records with relationship support and complex filters
-* **Data Manipulation**: Insert, update, delete, and upsert records with ease
-* **Cross-Object Search**: Search across multiple objects using SOSL
-* **Apex Code Management**: Read, create, and update Apex classes and triggers
-* **Intuitive Error Handling**: Clear feedback with Salesforce-specific error details
-* **Switchable Authentication**: Supports multiple orgs. Easily switch your active Salesforce org based on the default org configured in your VS Code workspace (use Salesforce_CLI authentication for this feature).
+| Approach | Works? | Limitations |
+|---|---|---|
+| **Salesforce Hosted MCP** (`api.salesforce.com`) | No | Returns 401 "Invalid token" — requires undocumented JWT format, beta is unstable |
+| **Microsoft's native Salesforce connector** | Yes | Only 7 tools: GetAccounts, GetOpportunities, GetLeads, GetCases, PostCase, PatchCase, ExecuteSOSLQuery |
+| **This self-hosted MCP server** | **Yes** | **15 tools** — full SOQL, CRUD on any object, Apex, schema management |
 
-## Installation
+### Architecture
 
-### Global Installation (npm)
+```
+Microsoft Copilot Studio
+    → Custom MCP Connector (Streamable HTTP)
+        → Azure App Service / Container App
+            → This MCP Server (HTTP transport)
+                → Salesforce REST API (via jsforce)
+```
+
+## Tools Available (15)
+
+| Tool | Description |
+|---|---|
+| `salesforce_search_objects` | Search for Salesforce objects by name pattern |
+| `salesforce_describe_object` | Get full schema metadata for any object |
+| `salesforce_query_records` | Execute SOQL queries with relationship support |
+| `salesforce_aggregate_query` | GROUP BY, COUNT, SUM, AVG queries |
+| `salesforce_dml_records` | Insert, Update, Delete, Upsert on any object |
+| `salesforce_manage_object` | Create/modify custom objects |
+| `salesforce_manage_field` | Create/modify custom fields |
+| `salesforce_manage_field_permissions` | Manage field-level security |
+| `salesforce_search_all` | SOSL cross-object search |
+| `salesforce_read_apex` | Read Apex class source code |
+| `salesforce_write_apex` | Create/update Apex classes |
+| `salesforce_read_apex_trigger` | Read trigger source code |
+| `salesforce_write_apex_trigger` | Create/update triggers |
+| `salesforce_execute_anonymous` | Execute anonymous Apex |
+| `salesforce_manage_debug_logs` | Enable/disable/retrieve debug logs |
+
+## Prerequisites
+
+- **Node.js** 18+ 
+- **Salesforce org** with API access (Developer, Enterprise, Unlimited edition)
+- **Azure subscription** (for hosting)
+- **Microsoft Copilot Studio** licence
+
+## Quick Start (Local)
+
+### 1. Clone and install
 
 ```bash
-npm install -g @tsmztech/mcp-server-salesforce
-```
-
-### Claude Desktop Quick Installation
-
-For easy setup with Claude Desktop, download the pre-configured extension:
-
-1. Download [`salesforce-mcp-extension.dxt`](./claude-desktop/salesforce-mcp-extension.dxt) from the `claude-desktop/` folder
-2. Open Claude Desktop → Settings → Extensions
-3. Drag the `.dxt` file into the Extensions window
-4. Configure your Salesforce credentials when prompted
-
-For manual Claude Desktop configuration, see [Usage with Claude Desktop](#usage-with-claude-desktop) below.
-
-## Tools
-
-### salesforce_search_objects
-Search for standard and custom objects:
-* Search by partial name matches
-* Finds both standard and custom objects
-* Example: "Find objects related to Account" will find Account, AccountHistory, etc.
-
-### salesforce_describe_object
-Get detailed object schema information:
-* Field definitions and properties
-* Relationship details
-* Picklist values
-* Example: "Show me all fields in the Account object"
-
-### salesforce_query_records
-Query records with relationship support:
-* Parent-to-child relationships
-* Child-to-parent relationships
-* Complex WHERE conditions
-* Example: "Get all Accounts with their related Contacts"
-* Note: For queries with GROUP BY or aggregate functions, use salesforce_aggregate_query
-
-### salesforce_aggregate_query
-Execute aggregate queries with GROUP BY:
-* GROUP BY single or multiple fields
-* Aggregate functions: COUNT, COUNT_DISTINCT, SUM, AVG, MIN, MAX
-* HAVING clauses for filtering grouped results
-* Date/time grouping functions
-* Example: "Count opportunities by stage" or "Find accounts with more than 10 opportunities"
-
-### salesforce_dml_records
-Perform data operations:
-* Insert new records
-* Update existing records
-* Delete records
-* Upsert using external IDs
-* Example: "Update status of multiple accounts"
-
-### salesforce_manage_object
-Create and modify custom objects:
-* Create new custom objects
-* Update object properties
-* Configure sharing settings
-* Example: "Create a Customer Feedback object"
-
-### salesforce_manage_field
-Manage object fields:
-* Add new custom fields
-* Modify field properties
-* Create relationships
-* Automatically grants Field Level Security to System Administrator by default
-* Use `grantAccessTo` parameter to specify different profiles
-* Example: "Add a Rating picklist field to Account"
-
-### salesforce_manage_field_permissions
-Manage Field Level Security (Field Permissions):
-* Grant or revoke read/edit access to fields for specific profiles
-* View current field permissions
-* Bulk update permissions for multiple profiles
-* Useful for managing permissions after field creation or for existing fields
-* Example: "Grant System Administrator access to Custom_Field__c on Account"
-
-### salesforce_search_all
-Search across multiple objects:
-* SOSL-based search
-* Multiple object support
-* Field snippets
-* Example: "Search for 'cloud' across Accounts and Opportunities"
-
-### salesforce_read_apex
-Read Apex classes:
-* Get full source code of specific classes
-* List classes matching name patterns
-* View class metadata (API version, status, etc.)
-* Support for wildcards (* and ?) in name patterns
-* Example: "Show me the AccountController class" or "Find all classes matching Account*Cont*"
-
-### salesforce_write_apex
-Create and update Apex classes:
-* Create new Apex classes
-* Update existing class implementations
-* Specify API versions
-* Example: "Create a new Apex class for handling account operations"
-
-### salesforce_read_apex_trigger
-Read Apex triggers:
-* Get full source code of specific triggers
-* List triggers matching name patterns
-* View trigger metadata (API version, object, status, etc.)
-* Support for wildcards (* and ?) in name patterns
-* Example: "Show me the AccountTrigger" or "Find all triggers for Contact object"
-
-### salesforce_write_apex_trigger
-Create and update Apex triggers:
-* Create new Apex triggers for specific objects
-* Update existing trigger implementations
-* Specify API versions and event operations
-* Example: "Create a new trigger for the Account object" or "Update the Lead trigger"
-
-### salesforce_execute_anonymous
-Execute anonymous Apex code:
-* Run Apex code without creating a permanent class
-* View debug logs and execution results
-* Useful for data operations not directly supported by other tools
-* Example: "Execute Apex code to calculate account metrics" or "Run a script to update related records"
-
-### salesforce_manage_debug_logs
-Manage debug logs for Salesforce users:
-* Enable debug logs for specific users
-* Disable active debug log configurations
-* Retrieve and view debug logs
-* Configure log levels (NONE, ERROR, WARN, INFO, DEBUG, FINE, FINER, FINEST)
-* Example: "Enable debug logs for user@example.com" or "Retrieve recent logs for an admin user"
-
-## Setup
-
-### Salesforce Authentication
-You can connect to Salesforce using one of three authentication methods:
-
-#### 1. Username/Password Authentication (Default)
-1. Set up your Salesforce credentials
-2. Get your security token (Reset from Salesforce Settings)
-
-#### 2. OAuth 2.0 Client Credentials Flow
-1. Create a Connected App in Salesforce
-2. Enable OAuth settings and select "Client Credentials Flow"
-3. Set appropriate scopes (typically "api" is sufficient)
-4. Save the Client ID and Client Secret
-5. **Important**: Note your instance URL (e.g., `https://your-domain.my.salesforce.com`) as it's required for authentication
-
-#### 3. Salesforce CLI Authentication (Recommended for local/dev) (contribution by @andrea9293)
-1. Install and authenticate Salesforce CLI (`sf`).
-2. Make sure your org is authenticated and accessible via `sf org display --json` in the root of your Salesforce project.
-3. The server will automatically retrieve the access token and instance url using the CLI.
-
-
-
-### Usage with Claude Desktop
-
-
-Add to your `claude_desktop_config.json`:
-
-
-#### For Salesforce CLI Authentication:
-```json
-{
-  "mcpServers": {
-    "salesforce": {
-      "command": "npx",
-      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
-      "env": {
-        "SALESFORCE_CONNECTION_TYPE": "Salesforce_CLI"
-      }
-    }
-  }
-}
-```
-
-#### For Username/Password Authentication:
-```json
-{
-  "mcpServers": {
-    "salesforce": {
-      "command": "npx",
-      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
-      "env": {
-        "SALESFORCE_CONNECTION_TYPE": "User_Password",
-        "SALESFORCE_USERNAME": "your_username",
-        "SALESFORCE_PASSWORD": "your_password",
-        "SALESFORCE_TOKEN": "your_security_token",
-        "SALESFORCE_INSTANCE_URL": "org_url"        // Optional. Default value: https://login.salesforce.com
-      }
-    }
-  }
-}
-```
-
-#### For OAuth 2.0 Client Credentials Flow:
-```json
-{
-  "mcpServers": {
-    "salesforce": {
-      "command": "npx",
-      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
-      "env": {
-        "SALESFORCE_CONNECTION_TYPE": "OAuth_2.0_Client_Credentials",
-        "SALESFORCE_CLIENT_ID": "your_client_id",
-        "SALESFORCE_CLIENT_SECRET": "your_client_secret",
-        "SALESFORCE_INSTANCE_URL": "https://your-domain.my.salesforce.com"  // REQUIRED: Must be your exact Salesforce instance URL
-      }
-    }
-  }
-}
-```
-
-> **Note**: For OAuth 2.0 Client Credentials Flow, the `SALESFORCE_INSTANCE_URL` must be your exact Salesforce instance URL (e.g., `https://your-domain.my.salesforce.com`). The token endpoint will be constructed as `<instance_url>/services/oauth2/token`.
-
-## Example Usage
-
-### Searching Objects
-```
-"Find all objects related to Accounts"
-"Show me objects that handle customer service"
-"What objects are available for order management?"
-```
-
-### Getting Schema Information
-```
-"What fields are available in the Account object?"
-"Show me the picklist values for Case Status"
-"Describe the relationship fields in Opportunity"
-```
-
-### Querying Records
-```
-"Get all Accounts created this month"
-"Show me high-priority Cases with their related Contacts"
-"Find all Opportunities over $100k"
-```
-
-### Aggregate Queries
-```
-"Count opportunities by stage"
-"Show me the total revenue by account"
-"Find accounts with more than 10 opportunities"
-"Calculate average deal size by sales rep and quarter"
-"Get the number of cases by priority and status"
-```
-
-### Managing Custom Objects
-```
-"Create a Customer Feedback object"
-"Add a Rating field to the Feedback object"
-"Update sharing settings for the Service Request object"
-```
-Examples with Field Level Security:
-```
-# Default - grants access to System Administrator automatically
-"Create a Status picklist field on Custom_Object__c"
-
-# Custom profiles - grants access to specified profiles
-"Create a Revenue currency field on Account and grant access to Sales User and Marketing User profiles"
-```
-
-### Managing Field Permissions
-```
-"Grant System Administrator access to Custom_Field__c on Account"
-"Give read-only access to Rating__c field for Sales User profile"
-"View which profiles have access to the Custom_Field__c"
-"Revoke field access for specific profiles"
-```
-
-### Searching Across Objects
-```
-"Search for 'cloud' in Accounts and Opportunities"
-"Find mentions of 'network issue' in Cases and Knowledge Articles"
-"Search for customer name across all relevant objects"
-```
-
-### Managing Apex Code
-```
-"Show me all Apex classes with 'Controller' in the name"
-"Get the full code for the AccountService class"
-"Create a new Apex utility class for handling date operations"
-"Update the LeadConverter class to add a new method"
-```
-
-### Managing Apex Triggers
-```
-"List all triggers for the Account object"
-"Show me the code for the ContactTrigger"
-"Create a new trigger for the Opportunity object"
-"Update the Case trigger to handle after delete events"
-```
-
-### Executing Anonymous Apex Code
-```
-"Execute Apex code to calculate account metrics"
-"Run a script to update related records"
-"Execute a batch job to process large datasets"
-```
-
-### Managing Debug Logs
-```
-"Enable debug logs for user@example.com"
-"Retrieve recent logs for an admin user"
-"Disable debug logs for a specific user"
-"Configure log level to DEBUG for a user"
-```
-
-## Development
-
-### Building from source
-```bash
-# Clone the repository
-git clone https://github.com/tsmztech/mcp-server-salesforce.git
-
-# Navigate to directory
+git clone <this-repo>
 cd mcp-server-salesforce
-
-# Install dependencies
 npm install
-
-# Build the project
-npm run build
 ```
 
-## Contributing
-Contributions are welcome! Feel free to submit a Pull Request.
+### 2. Configure Salesforce credentials
+
+Copy the example environment file and fill in your credentials:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```dotenv
+SALESFORCE_CONNECTION_TYPE=User_Password
+SALESFORCE_USERNAME=your-username@salesforce.com
+SALESFORCE_PASSWORD=your-password
+SALESFORCE_TOKEN=your-security-token
+SALESFORCE_INSTANCE_URL=https://login.salesforce.com
+PORT=3000
+```
+
+> **Security Note:** For production, use OAuth 2.0 Client Credentials flow instead of username/password. Set `SALESFORCE_CONNECTION_TYPE=OAuth_2_0_Client_Credentials` and provide `SALESFORCE_CLIENT_ID` and `SALESFORCE_CLIENT_SECRET`.
+
+### 3. Build and run
+
+```bash
+npm run build
+node dist/http-server.js
+```
+
+### 4. Test
+
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# Initialize MCP session
+curl -X POST http://localhost:3000/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+```
+
+## Deploy to Azure
+
+### Option A: Azure App Service
+
+```bash
+# Login to Azure
+az login
+
+# Create resource group
+az group create --name rg-sf-mcp --location uksouth
+
+# Create App Service plan
+az appservice plan create --name plan-sf-mcp --resource-group rg-sf-mcp --sku B1 --is-linux
+
+# Create web app
+az webapp create --name sf-mcp-server --resource-group rg-sf-mcp --plan plan-sf-mcp --runtime "NODE:18-lts"
+
+# Configure environment variables
+az webapp config appsettings set --name sf-mcp-server --resource-group rg-sf-mcp --settings \
+  SALESFORCE_CONNECTION_TYPE=User_Password \
+  SALESFORCE_USERNAME=your-username@salesforce.com \
+  SALESFORCE_PASSWORD=your-password \
+  SALESFORCE_TOKEN=your-security-token \
+  SALESFORCE_INSTANCE_URL=https://login.salesforce.com \
+  PORT=8080
+
+# Deploy
+az webapp deploy --name sf-mcp-server --resource-group rg-sf-mcp --src-path ./deploy.zip
+```
+
+### Option B: Azure Container Apps
+
+See [DEPLOY-AZURE.md](DEPLOY-AZURE.md) for Container Apps deployment with managed identity.
+
+## Connect to Copilot Studio
+
+### Using the MCP Onboarding Wizard (Recommended)
+
+1. In Copilot Studio → Agent → **Tools** → **Add a tool** → **New tool** → **Model Context Protocol**
+2. Fill in:
+   - **Server Name:** `Salesforce CRM`
+   - **Server Description:** `Query and manage Salesforce data — SOQL, CRUD, schema, Apex`
+   - **Server URL:** `https://your-app-name.azurewebsites.net/`
+3. Authentication: **None** (if using API key) or **OAuth 2.0** (if using Entra ID)
+4. Click **Create** → **Create connection** → **Add to agent**
+
+### Using a Custom Connector (Alternative)
+
+1. In Power Apps → Custom Connectors → Import OpenAPI file
+2. Use the provided [swagger.yaml](swagger.yaml)
+3. Configure security on the Security tab
+4. Add the connector to your Copilot Studio agent
+
+## Security Considerations
+
+### Authentication Options
+
+| Method | Use Case | Setup |
+|---|---|---|
+| **API Key** (header) | Simple deployments, internal use | Set `API_KEY` env var, pass in `X-API-Key` header |
+| **Entra ID OAuth** | Production, multi-tenant | Configure App Registration + OBO flow |
+| **Network restriction** | Defence in depth | Azure VNET + Private Endpoints |
+
+### Production Checklist
+
+- [ ] Use OAuth 2.0 Client Credentials for Salesforce auth (not username/password)
+- [ ] Store secrets in Azure Key Vault, not App Settings
+- [ ] Enable HTTPS only
+- [ ] Add API key or Entra ID authentication
+- [ ] Restrict network access (IP allowlist or VNET)
+- [ ] Enable Azure Monitor / Application Insights
+- [ ] Set up token refresh error alerting
+- [ ] Review which MCP tools to expose (disable Apex/schema tools if not needed)
+
+## Project Structure
+
+```
+├── src/
+│   ├── index.ts              # Original STDIO MCP server (from tsmztech)
+│   ├── http-server.ts        # Streamable HTTP wrapper (added for Copilot Studio)
+│   ├── tools/                # Tool implementations
+│   │   ├── query.ts          # SOQL queries
+│   │   ├── dml.ts            # Insert/Update/Delete/Upsert
+│   │   ├── search.ts         # Object search
+│   │   ├── searchAll.ts      # SOSL search
+│   │   ├── describe.ts       # Schema metadata
+│   │   ├── aggregateQuery.ts # Aggregate queries
+│   │   ├── manageObject.ts   # Custom object management
+│   │   ├── manageField.ts    # Custom field management
+│   │   ├── readApex.ts       # Read Apex source
+│   │   ├── writeApex.ts      # Write Apex source
+│   │   └── ...
+│   ├── types/                # TypeScript type definitions
+│   └── utils/
+│       └── connection.ts     # Salesforce connection factory
+├── .env.example              # Example environment config
+├── package.json
+├── tsconfig.json
+└── swagger.yaml              # OpenAPI spec for custom connector
+```
+
+## Credits
+
+This project is built on top of [tsmztech/mcp-server-salesforce](https://github.com/tsmztech/mcp-server-salesforce) (MIT License). The HTTP transport wrapper (`http-server.ts`) and Copilot Studio integration were added by this project.
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Issues and Support
-If you encounter any issues or need support, please file an issue on the [GitHub repository](https://github.com/tsmztech/mcp-server-salesforce/issues).
+MIT — see [LICENSE](LICENSE)

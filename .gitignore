@@ -7,6 +7,12 @@ dist/
 
 # Environment variables
 .env
+.env.*
+!.env.example
+
+# Token files (NEVER commit)
+tokens.json
+tokens-pkce.json
 
 # IDE and OS files
 .DS_Store
@@ -18,3 +24,7 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Deployment artifacts
+deploy.zip
+*.tgz

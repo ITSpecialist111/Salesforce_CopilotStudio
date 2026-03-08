@@ -1,0 +1,24 @@
+swagger: '2.0'
+info:
+  title: Salesforce MCP Server
+  description: >-
+    Self-hosted Salesforce MCP server with 16 tools — SOQL, CRUD,
+    document management, schema discovery, Apex, and more.
+  version: 1.0.0
+host: YOUR-APP-NAME.azurewebsites.net
+basePath: /
+schemes:
+  - https
+paths:
+  /:
+    post:
+      responses:
+        '200':
+          description: MCP JSON-RPC Response
+      x-ms-agentic-protocol: mcp-streamable-1.0
+      operationId: InvokeServer
+      summary: Salesforce MCP Server
+      description: >-
+        Self-hosted Salesforce MCP server with 16 tools — SOQL queries,
+        CRUD on any object, document search and download, schema discovery,
+        SOSL search, aggregate queries, Apex execution, and debug logs.
