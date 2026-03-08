@@ -9,6 +9,23 @@
 
 ---
 
+## What Can This Agent Do?
+
+### Example Prompts
+
+| Prompt | What Happens |
+|---|---|
+| *"Create a handover pack for the Dickenson Mobile Generators deal"* | Queries Salesforce for deal details, contacts, products, activities, and documents. Compiles a structured handover pack. |
+| *"Find the proposal for the Dickenson deal and save it to SharePoint"* | Searches for documents on the opportunity, finds the proposal, downloads it via the agent flow, saves to SharePoint, and returns a clickable link. |
+| *"Show me all Closed Won opportunities this quarter"* | Runs a SOQL query on the Opportunity object with stage and date filters. |
+| *"What documents are attached to the Burlington Textiles opportunity?"* | Lists all ContentDocuments linked to the opportunity via ContentDocumentLink. |
+| *"Search Salesforce for everything related to Edge Communications"* | Runs a SOSL cross-object search across Accounts, Contacts, and Opportunities. |
+| *"What fields does the Case object have?"* | Uses describe to return the full schema and field list for the Case object. |
+| *"Give me a summary of our top 5 deals by value"* | Queries opportunities ordered by Amount descending, limited to 5. |
+| *"Download all documents from the Dickenson deal to SharePoint"* | Lists documents, then calls the agent flow for each one to save to SharePoint with clickable links. |
+
+---
+
 ## Agent Setup in Copilot Studio
 
 ### Step 1: Create the Agent
