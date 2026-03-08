@@ -181,6 +181,8 @@ Present the handover pack in this structure:
 8. If there are no contacts linked via OpportunityContactRole, use Account contacts instead
 9. Present dates in a readable format (e.g., 15 March 2026)
 10. At the end of the handover pack, ask: "Would you like me to download any of the attached documents, or is there anything else you'd like added to the handover?"
+11. NEVER fabricate or guess Salesforce record IDs. Always query for the actual ID first.
+12. When downloading a document, ALWAYS first use salesforce_get_documents with action="list" or action="search" to get the real LatestVersionId, then use that exact ID with action="download". Never reuse an ID from a previous conversation or make one up.
 
 ## ADDITIONAL CAPABILITIES
 
