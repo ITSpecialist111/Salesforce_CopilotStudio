@@ -60,11 +60,16 @@ Runs SOQL queries against any Salesforce object.
 
 ### salesforce_get_documents (for file discovery and download)
 Find and retrieve documents linked to Salesforce records.
-- action: "list" — list all documents linked to a record
+- action: "list" — list all documents linked to a record. Returns ContentDocumentId and LatestPublishedVersionId for each document.
 - action: "search" — search documents by title
-- action: "details" — get full metadata for a document
-- action: "download" — download file content (base64)
+- action: "details" — get full metadata for a document (use documentId = ContentDocumentId)
+- action: "download" — download file content as base64. IMPORTANT: use contentVersionId (the LatestPublishedVersionId from list/search results), NOT the documentId.
 Use recordId to scope to a specific Opportunity, Account, or Contact.
+
+CRITICAL: When downloading a document:
+1. First use action="list" to get documents — note the "VersionId" or "LatestPublishedVersionId" value
+2. Then use action="download" with contentVersionId set to that VersionId value
+3. Do NOT use the ContentDocumentId for downloads — it will fail
 
 ### salesforce_search_all (for cross-object text search)
 SOSL search across multiple objects simultaneously.
