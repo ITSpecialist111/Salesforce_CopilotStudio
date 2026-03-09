@@ -157,12 +157,26 @@ See [DEPLOY-AZURE.md](DEPLOY-AZURE.md) for Container Apps deployment with manage
 
 ## Security Considerations
 
+### Current State
+
+> **Important:** This project is currently suitable for **development, demos, and internal proof-of-concept** use. It requires additional hardening for enterprise production deployments. See the roadmap below.
+
+| Area | Current State | Enterprise Ready? |
+|---|---|---|
+| **Salesforce auth** | Username + password + security token in App Settings | No — use OAuth Client Credentials or JWT Bearer |
+| **MCP endpoint auth** | Optional API key (`X-API-Key` header) | Partial — add Entra ID for enterprise |
+| **Data in transit** | HTTPS enforced by Azure App Service | Yes |
+| **Secrets management** | Azure App Settings (encrypted at rest) | Partial — move to Key Vault |
+| **Network access** | Open to the internet | No — add IP allowlist or VNET |
+| **Audit logging** | None | No — add Application Insights |
+| **Token rotation** | Manual | No — needs automated refresh |
+
 ### Authentication Options
 
 | Method | Use Case | Setup |
 |---|---|---|
 | **API Key** (header) | Simple deployments, internal use | Set `API_KEY` env var, pass in `X-API-Key` header |
-| **Entra ID OAuth** | Production, multi-tenant | Configure App Registration + OBO flow |
+| **Entra ID OAuth** | Production, multi-tenant | Configure App Registration + Easy Auth on App Service |
 | **Network restriction** | Defence in depth | Azure VNET + Private Endpoints |
 
 ### Production Checklist
@@ -175,6 +189,35 @@ See [DEPLOY-AZURE.md](DEPLOY-AZURE.md) for Container Apps deployment with manage
 - [ ] Enable Azure Monitor / Application Insights
 - [ ] Set up token refresh error alerting
 - [ ] Review which MCP tools to expose (disable Apex/schema tools if not needed)
+
+## Roadmap
+
+### Security Hardening (Priority)
+
+| Item | Status | Description |
+|---|---|---|
+| **Enable API key authentication** | Ready | Set `API_KEY` env var — already built into the server |
+| **Switch to OAuth 2.0 Client Credentials** | Planned | Replace username/password with Connected App client credentials. The server already supports this via `SALESFORCE_CONNECTION_TYPE=OAuth_2_0_Client_Credentials` |
+| **Switch to JWT Bearer auth** | Planned | Certificate-based auth — no secrets stored, most secure option |
+| **Azure Key Vault integration** | Planned | Move all Salesforce credentials from App Settings to Key Vault references |
+| **Entra ID authentication on endpoint** | Planned | Add Azure App Service Easy Auth so only your tenant can access the MCP server |
+| **Application Insights logging** | Planned | Log all MCP tool calls, Salesforce queries, and errors for audit trail |
+| **VNET + Private Endpoints** | Planned | Restrict network access so only Power Platform can reach the MCP server |
+| **Tool-level access control** | Planned | Configure which MCP tools are exposed (e.g. disable write/Apex tools for read-only agents) |
+| **Automated secret rotation** | Planned | Alert and rotate Salesforce tokens automatically |
+
+### Features
+
+| Item | Status | Description |
+|---|---|---|
+| **Streamable HTTP transport** | Done | Enables Copilot Studio MCP integration |
+| **Document search, list, download** | Done | Custom `salesforce_get_documents` tool with 4 actions |
+| **Accept header fix** | Done | Power Platform API Hub compatibility |
+| **API key authentication** | Done | Optional `X-API-Key` header validation |
+| **SharePoint Agent Flow integration** | Done | Download Salesforce files → SharePoint with clickable link |
+| **Text extraction from documents** | Planned | Extract readable text from Word/PDF for LLM reasoning |
+| **Persistent sessions** | Planned | Replace in-memory session store with Redis for multi-instance scaling |
+| **Containerised deployment** | Planned | Docker + Azure Container Apps support |
 
 ## Project Structure
 
