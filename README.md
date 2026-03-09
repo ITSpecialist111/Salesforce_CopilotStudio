@@ -2,6 +2,22 @@
 
 > A self-hosted Salesforce MCP (Model Context Protocol) server with Streamable HTTP transport, designed to connect to Microsoft Copilot Studio.
 
+---
+
+### ⚠️ Disclaimer
+
+**This project is provided for testing, development, and educational purposes only.**
+
+- This is **NOT** an official product of Salesforce, Microsoft, or any affiliated company.
+- This project is **NOT** endorsed, supported, or maintained by Salesforce or Microsoft.
+- The authors accept **NO liability** for any data loss, security incidents, service disruption, or other damages arising from the use of this software.
+- **Do NOT use in production** without performing your own security review, penetration testing, and compliance assessment.
+- You are solely responsible for securing your Salesforce credentials, Azure resources, and any data processed through this server.
+- Salesforce® is a registered trademark of Salesforce, Inc. Microsoft® and Copilot Studio® are registered trademarks of Microsoft Corporation. All trademarks belong to their respective owners.
+- Use of this software is subject to the [MIT License](LICENSE) — provided "as is" without warranty of any kind.
+
+---
+
 ## Overview
 
 This project wraps the excellent [tsmztech/mcp-server-salesforce](https://github.com/tsmztech/mcp-server-salesforce) (MIT License) with a **Streamable HTTP transport layer**, enabling it to work with **Microsoft Copilot Studio** as a custom MCP connector.
