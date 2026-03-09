@@ -29,41 +29,76 @@ Your Salesforce org must have API access enabled.
 
 ### Step 1.2: Check User Permissions
 
-Your Salesforce user needs:
+Your Salesforce user needs these permissions enabled:
 
 1. Go to **Setup** → Quick Find → **Users** → find your user
-2. Click your **Profile** → verify these permissions:
+2. Click your **Profile** → verify these permissions under **System Permissions**:
    - **API Enabled** ✓
-   - **Approve Uninstalled Connected Apps** ✓ (under System Permissions)
-3. The user must have access to the objects you want to query (Account, Opportunity, Contact, ContentDocument, etc.)
+   - **Approve Uninstalled Connected Apps** ✓
+3. The user must have access to the objects you want to query (Account, Opportunity, Contact, ContentDocument, ContentVersion, ContentDocumentLink, Task, Event, OpportunityLineItem, etc.)
 
-### Step 1.3: Get Your Security Token
+> **Note:** If using a custom profile (not System Administrator), you may need to check **"Approve Uninstalled Connected Apps"** under System Permissions. This was required to resolve `OAUTH_APPROVAL_ERROR_GENERIC` errors.
+
+### Step 1.3: Configure OAuth and OpenID Connect Settings
+
+Go to **Setup** → Quick Find → **"OAuth and OpenID Connect Settings"**
+
+Ensure these settings:
+
+| Setting | Value | Notes |
+|---|---|---|
+| **Allow OAuth Username-Password Flows** | **ON** | Required for the MCP server's username/password authentication |
+| **Allow OAuth User-Agent Flows** | **ON** | Required for browser-based OAuth flows |
+| **Allow Authorization Code and Credentials Flows** | **ON** | Required if using auth code flow |
+| **Require Proof Key for Code Exchange (PKCE)** | **OFF** | Keep OFF — the MCP server uses username/password flow, not PKCE |
+| **Allow Agent-Session Linking** | **ON** (optional) | Only needed if using Agentforce features |
+
+> **Important:** If PKCE is enabled org-wide, the username/password flow will fail with `OAUTH_APPROVAL_ERROR_GENERIC`. Disable it or ensure your app is exempt.
+
+### Step 1.4: Enable MCP Service Beta (Optional)
+
+If you also want to use Salesforce's hosted MCP servers (separate from this self-hosted solution):
+
+1. Go to **Setup** → Quick Find → **"User Interface"**
+2. Check **"Enable MCP Service (Beta)"**
+
+> **Note:** This step is NOT required for the self-hosted MCP server. It's only needed if you want to test Salesforce's own hosted MCP endpoints at `api.salesforce.com`.
+
+### Step 1.5: Get Your Security Token
 
 The MCP server uses username/password authentication, which requires a security token.
 
 1. Go to **Setup** → Quick Find → **"Reset My Security Token"**
+   - Or: Click your avatar → **Settings** → **My Personal Information** → **Reset My Security Token**
 2. Click **Reset Security Token**
 3. Check your email — Salesforce sends the token to your registered email address
 4. **Save the token** — you'll need it for Azure configuration
 
-> **Note:** The security token changes every time you reset your password. If you change your password, repeat this step.
+> **Important:** 
+> - The security token changes every time you reset your password. If you change your password, you must get a new token.
+> - The security token is appended to your password (e.g., `MyPassword123!aBcDeFgHiJkL`) when authenticating via the API.
+> - If "Lock sessions to IP" is enabled in your Session Settings, API calls from Azure will be blocked. Either disable this or whitelist Azure's IP ranges.
 
-### Step 1.4: Enable OAuth Flows (if needed)
+### Step 1.6: Session Settings (Prevent IP Lock Issues)
 
-1. Go to **Setup** → Quick Find → **"OAuth and OpenID Connect Settings"**
-2. Ensure **"Allow OAuth User-Agent Flows"** is toggled **ON**
-3. Ensure **"Require Proof Key for Code Exchange (PKCE)"** is toggled **OFF** (unless you're using PKCE-based auth)
+1. Go to **Setup** → Quick Find → **"Session Settings"**
+2. Under **Session Security**:
+   - Ensure **"Lock sessions to the IP address from which they originated"** is **UNCHECKED** (or whitelist Azure IP ranges)
+3. Under **Session Timeout**:
+   - Set timeout values appropriate for your use case (the MCP server creates new sessions per request)
 
-### Step 1.5: Note Your Credentials
+### Step 1.7: Note Your Credentials
 
-You'll need these for the Azure deployment:
+You'll need these four values for the Azure deployment:
 
 | Item | Where to find it | Example |
 |---|---|---|
 | **Username** | Your Salesforce login email | `user@company.com` |
 | **Password** | Your Salesforce password | `MyPassword123!` |
-| **Security Token** | Emailed after Step 1.3 | `aBcDeFgHiJkLmNoP` |
-| **Login URL** | `https://login.salesforce.com` (production) or `https://test.salesforce.com` (sandbox) | `https://login.salesforce.com` |
+| **Security Token** | Emailed after Step 1.5 | `aBcDeFgHiJkLmNoP` |
+| **Login URL** | `https://login.salesforce.com` (production/dev) or `https://test.salesforce.com` (sandbox) | `https://login.salesforce.com` |
+
+> **Connection Type:** This MCP server authenticates to Salesforce using the **Username-Password flow** via the jsforce library. No Connected App or External Client App is required for the self-hosted MCP server — it uses the standard Salesforce REST API with session tokens.
 
 ---
 
