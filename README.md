@@ -171,6 +171,83 @@ See [DEPLOY-AZURE.md](DEPLOY-AZURE.md) for Container Apps deployment with manage
 3. Configure security on the Security tab
 4. Add the connector to your Copilot Studio agent
 
+## Troubleshooting
+
+### Understand the two authentication layers
+
+Authentication errors fall into one of two independent layers. Identify which one is failing before troubleshooting:
+
+| Layer | Who authenticates | Credential | Symptom when it fails |
+|---|---|---|---|
+| **Copilot Studio → MCP server** | The connector calling your Azure endpoint | Optional `X-API-Key` header (only if `API_KEY` is set) | HTTP `401 Unauthorized` from the server |
+| **MCP server → Salesforce** | The server logging into Salesforce on every tool call | `SALESFORCE_USERNAME` + `SALESFORCE_PASSWORD` + `SALESFORCE_TOKEN` (or OAuth) | Tool call returns `isError: true` with a Salesforce message such as `INVALID_LOGIN` |
+
+> **The health check is not enough.** `GET /health` returns `200` even when the Salesforce credentials are wrong, because the server only authenticates to Salesforce when a **tool** is called — not on startup. A green health check tells you the app is running, not that Salesforce auth works.
+
+### `INVALID_LOGIN: Invalid username, password, security token; or user locked out`
+
+This is the most common error and always means the **server → Salesforce** credentials are being rejected. Things to check, in order:
+
+1. **The stored credentials are stale.** The values in your Azure App Settings may be older than what you use on the web. Being able to log in to the Salesforce website only proves you know the *current* password — it does **not** prove the same value is stored in Azure.
+2. **Resetting the security token in Salesforce does not update Azure.** A token reset only sends a new token to your email. Until you paste that new token into `SALESFORCE_TOKEN`, Azure still holds the old (now invalidated) one. Resetting the token without updating Azure makes the problem worse, not better.
+3. **Password and token must be a matching pair.** Changing your Salesforce password **invalidates the existing security token**. Always update `SALESFORCE_PASSWORD` and `SALESFORCE_TOKEN` **together**.
+4. **The token is case-sensitive** and appended directly to the password by the server — do not add spaces or separators.
+
+**Fix — update both values together.** In PowerShell, wrap each setting in **single quotes** so characters like `!`, `$`, or backticks are stored literally and not interpreted by the shell:
+
+```powershell
+az webapp config appsettings set --name <your-app-name> --resource-group <your-rg> --settings 'SALESFORCE_PASSWORD=<current-password>' 'SALESFORCE_TOKEN=<new-token>'
+```
+
+Setting app settings restarts the app automatically. MCP sessions are stored in memory, so Copilot Studio re-initialises on its next request.
+
+### How to reproduce the real Salesforce error
+
+Because the health endpoint hides auth failures, invoke an actual tool to surface the true Salesforce message. This drives a full MCP handshake and calls a query tool:
+
+```powershell
+$base = 'https://<your-app-name>.azurewebsites.net/'
+$h  = @{ 'Content-Type' = 'application/json'; 'Accept' = 'application/json, text/event-stream' }
+$init = Invoke-WebRequest -Uri $base -Method Post -Headers $h -UseBasicParsing -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"diag","version":"1.0"}}}'
+$sid = $init.Headers['Mcp-Session-Id']
+$h2 = $h + @{ 'Mcp-Session-Id' = "$sid" }
+Invoke-WebRequest -Uri $base -Method Post -Headers $h2 -UseBasicParsing -Body '{"jsonrpc":"2.0","method":"notifications/initialized"}' | Out-Null
+$call = Invoke-WebRequest -Uri $base -Method Post -Headers $h2 -UseBasicParsing -Body '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"salesforce_query_records","arguments":{"objectName":"Account","fields":["Id","Name"],"limit":3}}}'
+$call.Content
+```
+
+A successful response contains `"isError":false` and returns records. A failure returns the exact Salesforce message in the `text` field.
+
+### Trial, Developer, and Agentforce orgs
+
+Newer trial, Developer Edition, and **Agentforce** orgs increasingly enforce **multi-factor authentication (MFA)** and may block the legacy username-password API login entirely — even with a correct password and token. If credentials are definitely correct but login still fails, switch to the **OAuth 2.0 Client Credentials** flow (already supported):
+
+1. Create a Connected App / External Client App in Salesforce with the **Client Credentials** flow enabled and a run-as user assigned.
+2. Set these App Settings instead of the password/token pair:
+   ```powershell
+   az webapp config appsettings set --name <your-app-name> --resource-group <your-rg> --settings 'SALESFORCE_CONNECTION_TYPE=OAuth_2.0_Client_Credentials' 'SALESFORCE_CLIENT_ID=<consumer-key>' 'SALESFORCE_CLIENT_SECRET=<consumer-secret>' 'SALESFORCE_INSTANCE_URL=https://<your-domain>.my.salesforce.com'
+   ```
+   For Client Credentials, `SALESFORCE_INSTANCE_URL` must be your org's **My Domain** URL, not `login.salesforce.com`.
+
+### Other common issues
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `401 Unauthorized` from the server (not from Salesforce) | `API_KEY` is set but the request is missing or has a wrong `X-API-Key` header | Ensure the Copilot Studio connection sends the exact `X-API-Key` value; the header name is case-sensitive |
+| Login fails only from Azure, works locally | "Lock sessions to the IP address from which they originated" is enabled, or Login IP Ranges exclude Azure | Disable IP locking in **Setup → Session Settings**, or allowlist Azure outbound IPs on the user's profile |
+| `OAUTH_APPROVAL_ERROR_GENERIC` | Org-wide PKCE requirement, or missing "Approve Uninstalled Connected Apps" permission | Disable PKCE for the flow, or grant the permission on the user's profile |
+| No tools appear in Copilot Studio | App not running, or wrong port | Confirm `GET /health` returns `200`; ensure `PORT=8080` and `WEBSITES_PORT=8080` are set |
+| Sandbox login fails | Wrong login host | Set `SALESFORCE_INSTANCE_URL=https://test.salesforce.com` for sandboxes |
+| Auth worked before, suddenly breaks | Salesforce password was changed/expired, invalidating the token | Reset the token, then update **both** `SALESFORCE_PASSWORD` and `SALESFORCE_TOKEN` in Azure |
+
+### View live server logs
+
+```powershell
+az webapp log tail --name <your-app-name> --resource-group <your-rg>
+```
+
+The server logs its chosen connection type and Salesforce errors to stderr, which appears in the log stream.
+
 ## Security Considerations
 
 ### Current State
